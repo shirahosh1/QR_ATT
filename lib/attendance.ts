@@ -15,17 +15,37 @@ export type RegisterResult = {
   eventTitle?: string;
 };
 
+export type TeacherEventAttendance = {
+  eventId: string;
+  eventCode: string;
+  title: string;
+  startTime: string | null;
+  endTime: string | null;
+  attendeeCount: number;
+  attendees: {
+    studentId: string;
+    studentName: string | null;
+    scannedAt: string;
+  }[];
+};
+
+export type TeacherEventSummary = {
+  eventId: string;
+  eventCode: string;
+  title: string;
+  attendeeCount: number;
+};
+
 export async function registerAttendance(
   rawPayload: string,
   studentId: string,
 ): Promise<RegisterResult> {
   const parsed = parseQRPayload(rawPayload);
-
   if (!parsed.ok) {
     return { success: false, message: parsed.message };
   }
-
   const payload = parsed.payload;
+
   const now = Date.now();
   const start = payload.start ? new Date(payload.start).getTime() : null;
   const end = payload.end ? new Date(payload.end).getTime() : null;
@@ -33,7 +53,6 @@ export async function registerAttendance(
   if (start && now < start) {
     return { success: false, message: "Event has not started yet." };
   }
-
   if (end && now > end) {
     return { success: false, message: "Event has already ended." };
   }
@@ -42,7 +61,6 @@ export async function registerAttendance(
   let event: { id: string; title: string } | null = null;
 
   const foundEvent = await getEventByCode(payload.event);
-
   if (foundEvent) {
     event = foundEvent;
   } else {
@@ -58,11 +76,9 @@ export async function registerAttendance(
       ])
       .select("id, title")
       .single();
-
     if (insertError) {
       return { success: false, message: "Could not create event." };
     }
-
     event = newEvent;
   }
 
@@ -81,7 +97,6 @@ export async function registerAttendance(
         eventTitle: event.title,
       };
     }
-
     return { success: false, message: attError.message };
   }
 
@@ -113,20 +128,6 @@ export async function getAttendanceHistory(
   }));
 }
 
-export type TeacherEventAttendance = {
-  eventId: string;
-  eventCode: string;
-  title: string;
-  startTime: string | null;
-  endTime: string | null;
-  attendeeCount: number;
-  attendees: {
-    studentId: string;
-    studentName: string;
-    scannedAt: string;
-  }[];
-};
-
 export async function getTeacherEventAttendance(
   teacherId: string,
 ): Promise<TeacherEventAttendance[]> {
@@ -136,39 +137,41 @@ export async function getTeacherEventAttendance(
     .eq("created_by", teacherId)
     .order("created_at", { ascending: false });
 
-  if (eventError || !events) {
-    return [];
-  }
+  if (eventError || !events) return [];
 
   const eventIds = events.map((e: any) => e.id);
+  if (eventIds.length === 0) return [];
 
-  if (eventIds.length === 0) {
-    return [];
-  }
-
-  const { data: attendance, error: attError } = await supabase
+  const { data: attendance } = await supabase
     .from("attendance")
-    .select(
-      `
-      student_id,
-      scanned_at,
-      event_id,
-      profiles (
-        full_name,
-        email
-      )
-    `,
-    )
+    .select("student_id, scanned_at, event_id")
     .in("event_id", eventIds)
     .order("scanned_at", { ascending: false });
 
-  if (attError) {
-    return [];
+  const att = attendance ?? [];
+
+  // Fetch profiles for attendee names (uses RLS: Teachers can view profiles of their attendees)
+  const studentIds = [...new Set(att.map((a: any) => a.student_id as string))];
+  let profileMap: Record<string, string | null> = {};
+  if (studentIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", studentIds);
+    if (profiles) {
+      for (const p of profiles as any[]) {
+        profileMap[p.id] = p.full_name ?? null;
+      }
+    }
+    for (const a of att as any[]) {
+      if (a.profiles?.full_name && !profileMap[a.student_id]) {
+        profileMap[a.student_id] = a.profiles.full_name;
+      }
+    }
   }
 
   return events.map((e: any) => {
-    const rows = (attendance || []).filter((a: any) => a.event_id === e.id);
-
+    const rows = att.filter((a: any) => a.event_id === e.id);
     return {
       eventId: e.id,
       eventCode: e.event_code,
@@ -178,19 +181,12 @@ export async function getTeacherEventAttendance(
       attendeeCount: rows.length,
       attendees: rows.map((a: any) => ({
         studentId: a.student_id,
-        studentName: a.profiles?.full_name || a.profiles?.email || "",
+        studentName: profileMap[a.student_id] ?? a.profiles?.full_name ?? null,
         scannedAt: a.scanned_at,
       })),
     };
   });
 }
-
-export type TeacherEventSummary = {
-  eventId: string;
-  eventCode: string;
-  title: string;
-  attendeeCount: number;
-};
 
 export async function getTeacherEventSummary(
   teacherId: string,
@@ -201,15 +197,10 @@ export async function getTeacherEventSummary(
     .eq("created_by", teacherId)
     .order("created_at", { ascending: false });
 
-  if (eventError || !events) {
-    return [];
-  }
+  if (eventError || !events) return [];
 
   const eventIds = events.map((e: any) => e.id);
-
-  if (eventIds.length === 0) {
-    return [];
-  }
+  if (eventIds.length === 0) return [];
 
   const { data: attRows } = await supabase
     .from("attendance")
@@ -217,8 +208,7 @@ export async function getTeacherEventSummary(
     .in("event_id", eventIds);
 
   const counts: Record<string, number> = {};
-
-  (attRows || []).forEach((r: any) => {
+  (attRows ?? []).forEach((r: any) => {
     counts[r.event_id] = (counts[r.event_id] ?? 0) + 1;
   });
 

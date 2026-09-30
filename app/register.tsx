@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -11,23 +11,24 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Pressable,
-} from 'react-native';
-import { Link, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+} from "react-native";
+import { Link, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import AppButton from '@/components/AppButton';
-import Header from '@/components/Header';
-import { COLORS } from '@/constants/colors';
-import { signUp, SignUpProfile } from '@/lib/auth';
+import AppButton from "@/components/AppButton";
+import Header from "@/components/Header";
+import { COLORS } from "@/constants/colors";
+import { signUp } from "@/lib/auth";
 
 export default function RegisterScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'student' | 'teacher'>('student');
+  const router = useRouter();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [role, setRole] = useState<"student" | "teacher">("student");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -35,44 +36,38 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     setError(null);
 
-    if (!email.trim() || !password || !confirmPassword || !fullName.trim()) {
-      setError('All fields are required.');
+    if (!email.trim() || !password || !confirmPassword) {
+      setError("All fields are required.");
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError("Passwords do not match.");
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      setError("Password must be at least 6 characters.");
       return;
     }
 
     setLoading(true);
 
     try {
-      const profileData: SignUpProfile = {
+      const { data, error: authError } = await signUp(email.trim(), password, {
         full_name: fullName.trim(),
         role,
-      };
-
-      const { data, error: authError } = await signUp(
-        email.trim(),
-        password,
-        profileData
-      );
+      });
 
       if (authError) {
         setError(authError.message);
-      } else if (data?.session) {
-        router.replace('/(tabs)');
+      } else if (data.session) {
+        router.replace("/(tabs)");
       } else {
         setSuccess(true);
       }
     } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
+      setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -82,8 +77,8 @@ export default function RegisterScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <ScrollView
@@ -95,10 +90,13 @@ export default function RegisterScreen() {
               <Header title="QR Attendance" />
             </View>
 
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>
-              Register to start recording attendance
-            </Text>
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>Create Account</Text>
+
+              <Text style={styles.subtitle}>
+                Register to start recording attendance
+              </Text>
+            </View>
 
             {success ? (
               <View style={styles.successContainer}>
@@ -121,7 +119,7 @@ export default function RegisterScreen() {
                   style={styles.input}
                   value={fullName}
                   onChangeText={setFullName}
-                  placeholder="Enter your full name"
+                  placeholder="Your full name"
                   placeholderTextColor={COLORS.textSecondary}
                   editable={!loading}
                 />
@@ -132,14 +130,14 @@ export default function RegisterScreen() {
                   <Pressable
                     style={[
                       styles.roleChip,
-                      role === 'student' && styles.roleChipActive,
+                      role === "student" && styles.roleChipActive,
                     ]}
-                    onPress={() => setRole('student')}
+                    onPress={() => setRole("student")}
                   >
                     <Text
                       style={[
                         styles.roleChipText,
-                        role === 'student' && styles.roleChipTextActive,
+                        role === "student" && styles.roleChipTextActive,
                       ]}
                     >
                       Student
@@ -149,14 +147,14 @@ export default function RegisterScreen() {
                   <Pressable
                     style={[
                       styles.roleChip,
-                      role === 'teacher' && styles.roleChipActive,
+                      role === "teacher" && styles.roleChipActive,
                     ]}
-                    onPress={() => setRole('teacher')}
+                    onPress={() => setRole("teacher")}
                   >
                     <Text
                       style={[
                         styles.roleChipText,
-                        role === 'teacher' && styles.roleChipTextActive,
+                        role === "teacher" && styles.roleChipTextActive,
                       ]}
                     >
                       Teacher
@@ -210,7 +208,7 @@ export default function RegisterScreen() {
                     style={styles.loader}
                   />
                 ) : (
-                  <View style={styles.signUpButton}>
+                  <View style={styles.buttonContainer}>
                     <AppButton
                       theme="primary"
                       title="Sign Up"
@@ -251,34 +249,43 @@ const styles = StyleSheet.create({
   },
 
   headerContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
     marginBottom: 16,
   },
 
+  titleContainer: {
+    alignItems: "center",
+    width: "100%",
+  },
+
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.textPrimary,
-    textAlign: 'left',
     marginBottom: 4,
+    textAlign: "center",
   },
 
   subtitle: {
     fontSize: 15,
     color: COLORS.textSecondary,
-    textAlign: 'left',
     lineHeight: 21,
     marginBottom: 32,
+    textAlign: "center",
   },
 
   form: {
     marginBottom: 24,
   },
 
+  buttonContainer: {
+    marginTop: 16,
+  },
+
   label: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.textPrimary,
     marginBottom: 6,
     marginTop: 10,
@@ -296,48 +303,42 @@ const styles = StyleSheet.create({
   },
 
   roleRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 4,
+    flexDirection: "row",
+    gap: 10,
     marginBottom: 4,
   },
 
   roleChip: {
     flex: 1,
-    paddingVertical: 12,
     backgroundColor: COLORS.card,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 10,
-    alignItems: 'center',
+    paddingVertical: 12,
+    alignItems: "center",
   },
 
   roleChipActive: {
-    backgroundColor: COLORS.primary + '14',
     borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + "14",
   },
 
   roleChipText: {
-    fontSize: 15,
-    color: COLORS.textPrimary,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
   },
 
   roleChipTextActive: {
     color: COLORS.primary,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   error: {
     fontSize: 14,
     color: COLORS.danger,
-    textAlign: 'left',
     marginTop: 12,
     marginBottom: 4,
-  },
-
-  signUpButton: {
-    marginTop: 8,
   },
 
   loader: {
@@ -347,21 +348,21 @@ const styles = StyleSheet.create({
   link: {
     fontSize: 14,
     color: COLORS.primary,
-    textAlign: 'left',
-    fontWeight: '600',
+    textAlign: "center",
+    fontWeight: "600",
   },
 
   successContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 24,
     padding: 20,
     backgroundColor: COLORS.card,
-    borderRadius: 10,
+    borderRadius: 14,
   },
 
   successTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.textPrimary,
     marginBottom: 8,
   },
@@ -369,7 +370,7 @@ const styles = StyleSheet.create({
   successText: {
     fontSize: 14,
     color: COLORS.textSecondary,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 20,
     marginBottom: 16,
   },

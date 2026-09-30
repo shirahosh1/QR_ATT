@@ -3,9 +3,10 @@ import {
   StyleSheet,
   Text,
   View,
+  Alert,
   TextInput,
   Pressable,
-  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 
@@ -17,10 +18,10 @@ import { getProfile, updateProfile, type Profile } from "@/lib/profiles";
 export default function ProfileScreen() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState("");
+  const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const loadProfile = useCallback(async () => {
@@ -54,14 +55,14 @@ export default function ProfileScreen() {
   };
 
   const handleSignOut = async () => {
-    setSigningOut(true);
+    setLoading(true);
     try {
       await signOut();
       router.replace("/login");
     } catch (err: any) {
       Alert.alert("Error", err?.message || "Failed to sign out.");
     } finally {
-      setSigningOut(false);
+      setLoading(false);
     }
   };
 
@@ -69,17 +70,13 @@ export default function ProfileScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>My Profile</Text>
 
-      {user && (
-        <View style={styles.badgeWrapper}>
-          {profile?.role === "teacher" ? (
-            <View style={styles.roleBadge}>
-              <Text style={styles.roleBadgeText}>Teacher</Text>
-            </View>
-          ) : (
-            <View style={[styles.roleBadge, styles.roleBadgeStudent]}>
-              <Text style={styles.roleBadgeText}>Student</Text>
-            </View>
-          )}
+      {profile?.role === "teacher" ? (
+        <View style={styles.roleBadge}>
+          <Text style={styles.roleBadgeText}>Teacher</Text>
+        </View>
+      ) : (
+        <View style={[styles.roleBadge, styles.roleBadgeStudent]}>
+          <Text style={styles.roleBadgeText}>Student</Text>
         </View>
       )}
 
@@ -89,20 +86,26 @@ export default function ProfileScreen() {
           {editing ? (
             <View style={styles.nameEditRow}>
               <TextInput
-                style={styles.input}
+                style={styles.nameInput}
                 value={draftName}
                 onChangeText={setDraftName}
-                placeholder="Enter full name"
+                placeholder="Enter your name"
                 placeholderTextColor={COLORS.textSecondary}
+                editable={!saving}
               />
               <Pressable
+                style={styles.saveButton}
                 onPress={handleSaveName}
                 disabled={saving}
-                style={styles.saveBtn}
               >
-                <Text style={styles.saveBtnText}>
-                  {saving ? "Saving..." : "Save"}
-                </Text>
+                {saving ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={COLORS.textOnPrimary}
+                  />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save</Text>
+                )}
               </Pressable>
             </View>
           ) : (
@@ -115,7 +118,10 @@ export default function ProfileScreen() {
           )}
 
           <Text style={styles.label}>Email</Text>
-          <Text style={styles.value}>{profile?.email || user.email}</Text>
+          <Text style={styles.value}>{user.email}</Text>
+
+          <Text style={styles.label}>Role</Text>
+          <Text style={styles.value}>{profile?.role ?? "student"}</Text>
 
           <Text style={styles.label}>User ID</Text>
           <Text style={styles.valueSmall}>{user.id}</Text>
@@ -126,7 +132,7 @@ export default function ProfileScreen() {
         title="Sign Out"
         icon="log-out-outline"
         onPress={handleSignOut}
-        disabled={signingOut}
+        disabled={loading}
       />
     </View>
   );
@@ -145,21 +151,19 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     marginBottom: 12,
   },
-  badgeWrapper: {
-    marginBottom: 16,
-  },
   roleBadge: {
     alignSelf: "flex-start",
     backgroundColor: COLORS.primary,
+    borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 12,
+    marginBottom: 12,
   },
   roleBadgeStudent: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: COLORS.textSecondary,
   },
   roleBadgeText: {
-    color: "#fff",
+    color: COLORS.textOnPrimary,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -189,11 +193,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingVertical: 4,
   },
   editHint: {
     fontSize: 13,
-    color: COLORS.primary,
     fontWeight: "600",
+    color: COLORS.primary,
   },
   nameEditRow: {
     flexDirection: "row",
@@ -201,26 +206,28 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 4,
   },
-  input: {
+  nameInput: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     fontSize: 15,
     color: COLORS.textPrimary,
   },
-  saveBtn: {
+  saveButton: {
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  saveBtnText: {
-    color: "#fff",
-    fontSize: 13,
+  saveButtonText: {
+    color: COLORS.textOnPrimary,
     fontWeight: "600",
+    fontSize: 14,
   },
 });
