@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
   },
 
   pickerFieldPressed: {
-    backgroundColor: COLORS.backgroundSoft,
+    backgroundColor: COLORS.surface,
   },
 
   pickerValue: {
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
   },
 
   chip: {
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: COLORS.surface,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 7,
